@@ -144,6 +144,26 @@ class ModelsTests(Neo4jTestCase):
             (physical2)<-[:Connected_to]-(physical4)-[:Connected_to]->(physical3)
             """
 
+        self.role_name_1 = u'IT-Manager'
+        self.role_name_2 = u'Abuse Management'
+
+        q3 = """
+            // Create organization and contact nodes
+            CREATE (organization1:Node:Relation:Organization{name:'Organization1', handle_id:'113'}),
+            (organization2:Node:Relation:Organization{name:'Organization2', handle_id:'114'}),
+            (contact1:Node:Relation:Contact{name:'Contact1', handle_id:'115'}),
+            (contact2:Node:Relation:Contact{name:'Contact2', handle_id:'116'}),
+            (procedure1:Node:Logical:Procedure{name:'Procedure1', handle_id:'119'}),
+            (procedure2:Node:Logical:Procedure{name:'Procedure2', handle_id:'120'}),
+            (group1:Node:Logical:Group{name:'Group1', handle_id:'121'}),
+
+
+            // Create relationships
+            (contact1)-[:Works_for {name: 'IT-Manager' }]->(organization1),
+            (contact2)-[:Works_for {name: 'Abuse Management' }]->(organization2),
+            (organization1)-[:Uses_a]->(procedure1)
+            """
+
         # Insert mocked network
         with self.neo4jdb.session as s:
             s.run(q1)
@@ -151,6 +171,10 @@ class ModelsTests(Neo4jTestCase):
         # Insert generic models
         with self.neo4jdb.session as s:
             s.run(q2)
+
+        # Insert organizations and contacts
+        with self.neo4jdb.session as s:
+            s.run(q3)
 
     def test_base_node_model(self):
         node_model_1 = core.get_node_model(self.neo4jdb, handle_id='101')
@@ -190,6 +214,20 @@ class ModelsTests(Neo4jTestCase):
         node_model_1 = node_model_1.remove_label('Test_Label')
         new_labels = node_model_1.labels
         self.assertEqual(sorted(new_labels), sorted(initial_labels))
+
+    def test_add_remove_property(self):
+        node_model_1 = core.get_node_model(self.neo4jdb, handle_id='115')
+        initial_data = node_model_1.data
+        first_name = 'Smith'
+        node_model_1 = node_model_1.add_property('first_name', first_name)
+        new_data = node_model_1.data
+        new_property = {'first_name': first_name}
+        expected_data = initial_data.copy()
+        expected_data.update(new_property)
+        self.assertEqual(sorted(new_data), sorted(expected_data))
+        node_model_1 = node_model_1.remove_property('first_name')
+        new_data = node_model_1.data
+        self.assertEqual(sorted(new_data), sorted(initial_data))
 
     def test_change_meta_type(self):
         node_model_1 = core.get_node_model(self.neo4jdb, handle_id='101')
@@ -289,6 +327,10 @@ class ModelsTests(Neo4jTestCase):
         location2 = core.get_node_model(self.neo4jdb, handle_id='110')
         relations = location2.get_relations()
         self.assertIsInstance(relations['Responsible_for'][0]['node'], models.RelationModel)
+
+        organization1 = core.get_node_model(self.neo4jdb, handle_id='113')
+        relations = organization1.get_relations()
+        self.assertIsInstance(relations['Works_for'][0]['node'], models.RelationModel)
 
     def test_get_dependencies(self):
         logical3 = core.get_node_model(self.neo4jdb, handle_id='107')
@@ -551,6 +593,103 @@ class ModelsTests(Neo4jTestCase):
         self.assertEqual(result['Responsible_for'][0]['created'], False)
         relations = rack_4.get_relations()
         self.assertEqual(len(relations['Responsible_for']), 1)
+
+    def test_set_parent(self):
+        organization1 = core.get_node_model(self.neo4jdb, handle_id='113')
+        organization2 = core.get_node_model(self.neo4jdb, handle_id='114')
+        organization2.set_parent(organization1.handle_id)
+        relations = organization2.get_relations()
+        self.assertIsInstance(relations['Parent_of'][0]['node'], models.OrganizationModel)
+
+    def test_get_outgoing_relations(self):
+        contact1 = core.get_node_model(self.neo4jdb, handle_id='115')
+        relations = contact1.get_outgoing_relations()
+        self.assertIsInstance(relations['Works_for'][0]['node'], models.OrganizationModel)
+
+        expected_value = self.role_name_1
+        self.assertEquals(relations['Works_for'][0]['relationship']['name'], expected_value)
+
+    def test_contact_role_org(self):
+        contact1 = core.get_node_model(self.neo4jdb, handle_id='115')
+        organization1 = core.get_node_model(self.neo4jdb, handle_id='113')
+
+        # unlink
+        models.RoleRelationship.unlink_contact_with_role_organization(contact1.handle_id,
+            organization1.handle_id, self.role_name_1, self.neo4jdb)
+
+        relations = contact1.get_outgoing_relations()
+        self.assertEquals(relations, {})
+
+        # relink
+        models.RoleRelationship.link_contact_organization(contact1.handle_id,
+            organization1.handle_id, self.role_name_1, self.neo4jdb)
+        relations = contact1.get_outgoing_relations()
+        expected_value = self.role_name_1
+        self.assertEquals(relations['Works_for'][0]['relationship']['name'], expected_value)
+
+        # get contact which holds this role in this organization
+        contact_handle_id = models.RoleRelationship.get_contact_with_role_in_organization(
+            organization1.handle_id, self.role_name_1, self.neo4jdb)
+        self.assertEqual(contact_handle_id, contact1.handle_id)
+
+        # get the relation of a organization with a specific role
+        relation = models.RoleRelationship.get_role_relation_from_organization(
+            organization1.handle_id, self.role_name_1, self.neo4jdb)
+        self.assertEqual(relations['Works_for'][0]['relationship_id'], relation.id)
+
+        # get the relation between contact and organization with a specific role
+        relation = models.RoleRelationship.get_role_relation_from_contact_organization(
+            organization1.handle_id, self.role_name_1, contact1.handle_id, self.neo4jdb)
+        self.assertEqual(relations['Works_for'][0]['relationship_id'], relation.id)
+
+        # check role list
+        role_list = models.RoleRelationship.get_all_role_names(self.neo4jdb)
+        self.assertEquals(role_list, [self.role_name_1, self.role_name_2])
+
+        # role name change
+        new_role_name = u"Abuse Manager"
+        models.RoleRelationship.update_roles_withname(self.role_name_2,
+            new_role_name, self.neo4jdb)
+        role_list = models.RoleRelationship.get_all_role_names(self.neo4jdb)
+        self.assertEquals(role_list, [self.role_name_1, new_role_name])
+
+        # delete role
+        models.RoleRelationship.delete_roles_withname(new_role_name,
+            self.neo4jdb)
+        role_list = models.RoleRelationship.get_all_role_names(self.neo4jdb)
+        self.assertEquals(role_list, [self.role_name_1])
+
+    def test_uses_a_procedure(self):
+        organization1 = core.get_node_model(self.neo4jdb, handle_id='113')
+        organization2 = core.get_node_model(self.neo4jdb, handle_id='114')
+        procedure1 = core.get_node_model(self.neo4jdb, handle_id='119')
+        procedure2 = core.get_node_model(self.neo4jdb, handle_id='120')
+
+        relations1 = procedure1.get_relations()
+        self.assertIsInstance(relations1['Uses_a'][0]['node'], models.OrganizationModel)
+
+        organization2.add_procedure(procedure2.handle_id)
+        relations2 = procedure2.get_relations()
+        self.assertIsInstance(relations2['Uses_a'][0]['node'], models.OrganizationModel)
+
+    def test_organization_outgoingrel(self):
+        organization1 = core.get_node_model(self.neo4jdb, handle_id='113')
+        relations1 = organization1.get_outgoing_relations()
+        self.assertIsInstance(relations1['Uses_a'][0]['node'], models.ProcedureModel)
+
+    def test_organization_contacts(self):
+        organization1 = core.get_node_model(self.neo4jdb, handle_id='113')
+        contacts = organization1.get_contacts()
+        contact1 = core.get_node_model(self.neo4jdb, handle_id='115')
+        self.assertEqual(contact1.handle_id, contacts[0]['handle_id'])
+        self.assertEqual(contact1.data['name'], contacts[0]['name'])
+
+    def test_groups(self):
+        group1 = core.get_node_model(self.neo4jdb, handle_id='121')
+        contact1 = core.get_node_model(self.neo4jdb, handle_id='115')
+        group1.add_member(contact1.handle_id)
+        relations = contact1.get_outgoing_relations()
+        self.assertIsInstance(relations['Member_of'][0]['node'], models.GroupModel)
 
     # TODO: EquipmentModel get_ports should probably work as CommonQueries get_ports
     def test_get_ports_equipment_model(self):
