@@ -240,8 +240,9 @@ class CommonQueries(BaseNodeModel):
             MATCH (node:Node {handle_id: {handle_id}})
             OPTIONAL MATCH (node)<-[:Depends_on]-(d)
             WITH node, collect(DISTINCT d) as direct
-            MATCH (node)<-[:Part_of|Depends_on*1..20]-(dep)
-            WITH direct, collect(DISTINCT dep) as deps
+            OPTIONAL MATCH (node)<-[:Part_of|Depends_on*1..20]-(dep)
+            OPTIONAL MATCH (node)-[:Depends_on]->(p:Port)<-[:Part_of|Depends_on*1..20]-(port_deps)
+            WITH direct, collect(DISTINCT dep) + collect(DISTINCT port_deps) as deps
             WITH direct, deps, filter(n in deps WHERE n:Service) as services
             WITH direct, deps, services, filter(n in deps WHERE n:Optical_Path) as paths
             WITH direct, deps, services, paths, filter(n in deps WHERE n:Optical_Multiplex_Section) as oms
