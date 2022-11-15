@@ -6,7 +6,7 @@ __author__ = 'lundberg'
 
 def update_item_properties(item_properties, new_properties):
     for key, value in new_properties.items():
-        if value or value is 0:
+        if value or value == 0:
             item_properties[key] = value
         elif key in item_properties.keys():
             del item_properties[key]
