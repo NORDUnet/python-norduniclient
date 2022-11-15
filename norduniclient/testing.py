@@ -127,10 +127,7 @@ class Neo4jTemporaryInstance(object):
         return True
 
     def shutdown(self):
-        if self._process:
-            self._process.terminate()
-            self._process.wait()
-            self._process = None
+        pass
 
 
 class Neo4jTestCase(unittest.TestCase):
@@ -143,4 +140,3 @@ class Neo4jTestCase(unittest.TestCase):
 
     def tearDown(self):
         self.neo4j_instance.purge_db()
-
