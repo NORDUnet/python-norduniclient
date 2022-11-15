@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '1.3.3'
+version = '1.3.4'
 
 requires = [
     'neo4j-driver<2.0',
