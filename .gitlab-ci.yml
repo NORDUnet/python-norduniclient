@@ -27,4 +27,4 @@ deploy:
   script:
     - pip install -U twine build
     - python -m build
-    - twine upload --repository testpypi dist/* --verbose
+    - twine upload dist/* --verbose
