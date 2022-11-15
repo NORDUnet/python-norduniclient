@@ -94,7 +94,7 @@ class Neo4jTemporaryInstance(object):
         try:  # Python 2
             auth = base64.encodestring(basic_auth)
         except TypeError:  # Python 3
-            auth = base64.encodestring(bytes(basic_auth, 'utf-8')).decode()
+            auth = base64.b64encode(bytes(basic_auth, 'utf-8')).decode()
 
         headers = {
             "Content-Type": "application/json",
