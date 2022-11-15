@@ -1,0 +1,24 @@
+---
+image: python:3
+
+services:
+  - neo4j:3.5
+
+before_script:
+  - python -V
+
+test:
+  tags:
+    - docker
+  script:
+    - python setup.py testing
+    - python setup.py test
+
+deploy:
+  only:
+    - master
+    - tags
+  script:
+    - pip install -U twine
+    - python -m build
+      #    - twine upload --repository testpypi dist/* --verbose

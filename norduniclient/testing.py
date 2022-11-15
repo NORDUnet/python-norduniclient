@@ -5,11 +5,8 @@ from __future__ import absolute_import
 import unittest
 import time
 import atexit
-import random
-import subprocess
 import base64
 import json
-from os import environ
 from socket import error as SocketError
 
 try:
@@ -20,9 +17,6 @@ except ImportError:
 from norduniclient.core import init_db
 
 __author__ = 'lundberg'
-
-# Run tests with different Neo4j docker image versions using environment variables
-NEO4J_VERSION = environ.get('NEO4J_VERSION', 'latest')
 
 
 class Neo4jTemporaryInstance(object):
@@ -47,24 +41,9 @@ class Neo4jTemporaryInstance(object):
             atexit.register(cls._instance.shutdown)
         return cls._instance
 
-    def __init__(self, neo4j_version=NEO4J_VERSION):
-        while self._http_port == self._bolt_port:
-            self._http_port = random.randint(40000, 50000)
-            self._bolt_port = random.randint(40000, 50000)
-        self._docker_exc = 'docker'
-        self._docker_name = 'neo4j-{!s}'.format(self.bolt_port)
-        try:
-            self._process = subprocess.Popen([self._docker_exc, 'run', '--rm', '--name',
-                                              '{!s}'.format(self._docker_name),
-                                              '-p', '{!s}:7474'.format(self.http_port),
-                                              '-p', '{!s}:7687'.format(self.bolt_port),
-                                              'neo4j:{}'.format(neo4j_version)],
-                                             stdout=open('/tmp/neo4j-temp.log', 'wb'),
-                                             stderr=subprocess.STDOUT)
-        except OSError:
-            assert False, "No docker executable found"
-
-        self._host = 'localhost'
+    def __init__(self):
+        self._host = 'neo4j'
+        self._bolt_port = 7687
 
         for i in range(300):
             time.sleep(0.5)
