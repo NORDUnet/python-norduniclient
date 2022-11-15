@@ -45,6 +45,7 @@ class Neo4jTemporaryInstance(object):
 
     def __init__(self):
         self._host = 'neo4j'
+        self._http_port = 7474
         self._bolt_port = 7687
 
         for i in range(300):
