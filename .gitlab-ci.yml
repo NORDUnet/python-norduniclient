@@ -1,17 +1,19 @@
 ---
-image: python:3.10
+stages:
+  - test
+  - deploy
+
+image: python:3
 
 services:
   - neo4j:3.5
 
-stages:
-  - test
-  - deploy
 
 before_script:
   - python -V
 
 test:
+  stage: test
   tags:
     - docker
   script:
@@ -19,6 +21,7 @@ test:
     - python setup.py test
 
 deploy:
+  stage: deploy
   only:
     - master
     - tags
