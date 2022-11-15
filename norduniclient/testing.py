@@ -15,6 +15,8 @@ except ImportError:
     import httplib as http
 
 from norduniclient.core import init_db
+import collections
+collections.Callable = collections.abc.Callable
 
 __author__ = 'lundberg'
 
