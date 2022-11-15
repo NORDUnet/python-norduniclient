@@ -4,6 +4,10 @@ image: python:3.10
 services:
   - neo4j:3.5
 
+stages:
+  - test
+  - deploy
+
 before_script:
   - python -V
 
@@ -19,6 +23,6 @@ deploy:
     - master
     - tags
   script:
-    - pip install -U twine
+    - pip install -U twine build
     - python -m build
       #    - twine upload --repository testpypi dist/* --verbose
