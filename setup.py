@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '1.1.5'
+version = '1.3.4'
 
 requires = [
     'neo4j-driver<2.0',
@@ -13,7 +13,7 @@ testing_requires = [
 ]
 
 setup(
-    name='norduniclient_markusk',
+    name='norduniclient',
     version=version,
     url='https://github.com/NORDUnet/python-norduniclient',
     license='Apache License, Version 2.0',
