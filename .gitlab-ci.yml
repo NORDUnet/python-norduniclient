@@ -23,7 +23,6 @@ test:
 deploy:
   stage: deploy
   only:
-    - master
     - tags
   script:
     - pip install -U twine build
