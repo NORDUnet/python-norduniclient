@@ -93,7 +93,7 @@ class Neo4jTemporaryInstance(object):
         basic_auth = '%s:%s' % (self.DEFAULT_USERNAME, self.DEFAULT_PASSWORD)
         try:  # Python 2
             auth = base64.encodestring(basic_auth)
-        except TypeError:  # Python 3
+        except (TypeError, AttributeError):  # Python 3
             auth = base64.b64encode(bytes(basic_auth, 'utf-8')).decode()
 
         headers = {
