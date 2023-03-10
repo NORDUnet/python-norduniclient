@@ -21,7 +21,7 @@
 from __future__ import absolute_import
 
 from neo4j.v1 import GraphDatabase, basic_auth
-from neo4j.exceptions import ProtocolError
+from neo4j.exceptions import ProtocolError, ClientError
 from norduniclient import exceptions
 from norduniclient import models
 
@@ -98,11 +98,22 @@ def init_db(uri=NEO4J_URI, username=NEO4J_USERNAME, password=NEO4J_PASSWORD, enc
             try:
                 with manager.session as s:
                     s.run('CREATE CONSTRAINT ON (n:Node) ASSERT n.handle_id IS UNIQUE')
+            except ClientError as e:
+                if e.title == 'EquivalentSchemaRuleAlreadyExists':
+                    logger.info('Unique constraint already exists')
+                else:
+                    raise e
             except Exception as e:
                 logger.error('Could not create constraints for Neo4j database: {!s}'.format(uri))
                 raise e
             try:
                 create_index(manager, 'name')
+            except ClientError as e:
+                if e.title == 'EquivalentSchemaRuleAlreadyExists':
+                    logger.info('Index already exists')
+                else:
+                    logger.error('Could not create index for Neo4j database: {!s}'.format(uri))
+                    raise e
             except Exception as e:
                 logger.error('Could not create index for Neo4j database: {!s}'.format(uri))
                 raise e
@@ -190,7 +201,7 @@ def create_node(manager, name, meta_type_label, type_label, handle_id):
     if meta_type_label not in META_TYPES:
         raise exceptions.MetaLabelNamingError(meta_type_label)
     q = """
-        CREATE (n:Node:%s:%s { name: { name }, handle_id: { handle_id }})
+        CREATE (n:Node:%s:%s { name: $name, handle_id: $handle_id})
         RETURN n
         """ % (meta_type_label, type_label)
     with manager.session as s:
@@ -207,7 +218,7 @@ def get_node(manager, handle_id):
 
     :rtype: dict|neo4j.v1.types.Node
     """
-    q = 'MATCH (n:Node { handle_id: {handle_id} }) RETURN n'
+    q = 'MATCH (n:Node { handle_id: $handle_id }) RETURN n'
 
     with manager.session as s:
         result = s.run(q, {'handle_id': handle_id}).single()
@@ -226,7 +237,7 @@ def get_node_bundle(manager, handle_id=None, node=None):
     :return: dict
     """
     if not node:
-        q = 'MATCH (n:Node { handle_id: {handle_id} }) RETURN n'
+        q = 'MATCH (n:Node { handle_id: $handle_id }) RETURN n'
         with manager.session as s:
             result = s.run(q, {'handle_id': handle_id}).single()
             if not result:
@@ -255,7 +266,7 @@ def delete_node(manager, handle_id):
     :rtype: bool
     """
     q = """
-        MATCH (n:Node {handle_id: {handle_id}})
+        MATCH (n:Node {handle_id: $handle_id})
         OPTIONAL MATCH (n)-[r]-()
         DELETE n,r
         """
@@ -276,7 +287,7 @@ def get_relationship(manager, relationship_id):
     """
     q = """
         MATCH ()-[r]->()
-        WHERE ID(r) = {relationship_id}
+        WHERE ID(r) = $relationship_id
         RETURN r
         """
     with manager.session as s:
@@ -297,7 +308,7 @@ def get_relationship_bundle(manager, relationship_id=None):
     """
     q = """
         MATCH (start)-[r]->(end)
-        WHERE ID(r) = {relationship_id}
+        WHERE ID(r) = $relationship_id
         RETURN start, r, end
         """
 
@@ -325,7 +336,7 @@ def delete_relationship(manager, relationship_id):
     """
     q = """
         MATCH ()-[r]->()
-        WHERE ID(r) = {relationship_id}
+        WHERE ID(r) = $relationship_id
         DELETE r
         """
     with manager.session as s:
@@ -365,7 +376,7 @@ def get_nodes_by_value(manager, value, prop, node_type='Node'):
     """
     q = """
         MATCH (n:{label})
-        WHERE n.{prop} = {{value}}
+        WHERE n.{prop} = $value
         RETURN distinct n
         """.format(label=node_type, prop=prop)
 
@@ -433,7 +444,7 @@ def get_nodes_by_type(manager, node_type):
 # TODO: Try out elasticsearch
 def get_nodes_by_name(manager, name):
     q = """
-        MATCH (n:Node {name: {name}})
+        MATCH (n:Node {name: $name})
         RETURN n
         """
     with manager.session as s:
@@ -474,7 +485,7 @@ def get_indexed_node(manager, prop, value, node_type='Node', lookup_func='CONTAI
     """
     q = """
         MATCH (n:{label})
-        WHERE LOWER(n.{prop}) {lookup_func} LOWER({{value}})
+        WHERE LOWER(n.{prop}) {lookup_func} LOWER($value)
         RETURN n
         """.format(label=node_type, prop=prop, lookup_func=lookup_func)
     with manager.session as s:
@@ -492,8 +503,8 @@ def get_unique_node_by_name(manager, node_name, node_type):
     :return: norduniclient node model or None
     """
     q = """
-        MATCH (n:Node { name: {name} })
-        WHERE {label} IN labels(n)
+        MATCH (n:Node { name: $name })
+        WHERE $label IN labels(n)
         RETURN n.handle_id as handle_id
         """
 
@@ -523,7 +534,7 @@ def _create_relationship(manager, handle_id, other_handle_id, rel_type):
     """
 
     q = """
-        MATCH (a:Node {handle_id: {start}}),(b:Node {handle_id: {end}})
+        MATCH (a:Node {handle_id: $start}),(b:Node {handle_id: $end})
         CREATE (a)-[r:%s]->(b)
         RETURN r
         """ % rel_type
@@ -620,12 +631,12 @@ def get_relationships(manager, handle_id1, handle_id2, rel_type=None):
     """
     if rel_type:
         q = """
-        MATCH (a:Node {{handle_id: {{handle_id1}}}})-[r:{rel_type}]-(b:Node {{handle_id: {{handle_id2}}}})
+        MATCH (a:Node {{handle_id: $handle_id1}})-[r:{rel_type}]-(b:Node {{handle_id: $handle_id2}})
         RETURN collect(r) as relationships
         """.format(rel_type=rel_type)
     else:
         q = """
-            MATCH (a:Node {handle_id: {handle_id1}})-[r]-(b:Node {handle_id: {handle_id2}})
+            MATCH (a:Node {handle_id: $handle_id1})-[r]-(b:Node {handle_id: $handle_id2})
             RETURN collect(r) as relationships
             """
     with manager.session as s:
@@ -636,8 +647,8 @@ def set_node_properties(manager, handle_id, new_properties):
     new_properties['handle_id'] = handle_id  # Make sure the handle_id can't be changed
 
     q = """
-        MATCH (n:Node {handle_id: {props}.handle_id})
-        SET n = {props}
+        MATCH (n:Node {handle_id: $props.handle_id})
+        SET n = $props
         RETURN n
         """
     with manager.session as s:
@@ -648,8 +659,8 @@ def set_relationship_properties(manager, relationship_id, new_properties):
 
     q = """
         MATCH ()-[r]->()
-        WHERE ID(r) = {relationship_id}
-        SET r = {props}
+        WHERE ID(r) = $relationship_id
+        SET r = $props
         RETURN r
         """
     with manager.session as s:

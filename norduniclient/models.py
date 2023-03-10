@@ -81,7 +81,7 @@ class BaseNodeModel(object):
 
     def _incoming(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r]-(node)
+            MATCH (n:Node {handle_id: $handle_id})<-[r]-(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
@@ -89,7 +89,7 @@ class BaseNodeModel(object):
 
     def _outgoing(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r]->(node)
+            MATCH (n:Node {handle_id: $handle_id})-[r]->(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
@@ -97,7 +97,7 @@ class BaseNodeModel(object):
 
     def _relationships(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r]-(node)
+            MATCH (n:Node {handle_id: $handle_id})-[r]-(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
@@ -151,7 +151,7 @@ class BaseNodeModel(object):
 
     def add_label(self, label):
         q = """
-            MATCH (n:Node {{handle_id: {{handle_id}}}})
+            MATCH (n:Node {{handle_id: $handle_id}})
             SET n:{label}
             RETURN n
             """.format(label=label)
@@ -161,7 +161,7 @@ class BaseNodeModel(object):
 
     def remove_label(self, label):
         q = """
-            MATCH (n:Node {{handle_id: {{handle_id}}}})
+            MATCH (n:Node {{handle_id: $handle_id}})
             REMOVE n:{label}
             RETURN n
             """.format(label=label)
@@ -206,7 +206,7 @@ class CommonQueries(BaseNodeModel):
         if node_type:
             type_filter = 'and (child):{node_type}'.format(node_type=node_type)
         q = """
-            MATCH (parent:Node {{handle_id:{{handle_id}}}})
+            MATCH (parent:Node {{handle_id:$handle_id}})
             MATCH (parent)--(child)
             WHERE (parent)-[:Has]->(child) or (parent)<-[:Located_in|Part_of]-(child) {type_filter}
             RETURN child.handle_id as handle_id, labels(child) as labels, child.name as name,
@@ -216,61 +216,61 @@ class CommonQueries(BaseNodeModel):
 
     def get_relations(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Owns|Uses|Provides|Responsible_for]-(node)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Owns|Uses|Provides|Responsible_for]-(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_dependencies(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Depends_on]->(node)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Depends_on]->(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_dependents(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Depends_on]-(node)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Depends_on]-(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_dependent_as_types(self):
         q = """
-            MATCH (node:Node {handle_id: {handle_id}})
+            MATCH (node:Node {handle_id: $handle_id})
             OPTIONAL MATCH (node)<-[:Depends_on]-(d)
             WITH node, collect(DISTINCT d) as direct
             OPTIONAL MATCH (node)<-[:Part_of|Depends_on*1..20]-(dep)
             OPTIONAL MATCH (node)-[:Depends_on]->(p:Port)<-[:Part_of|Depends_on*1..20]-(port_deps)
             WITH direct, collect(DISTINCT dep) + collect(DISTINCT port_deps) as deps
-            WITH direct, deps, filter(n in deps WHERE n:Service) as services
-            WITH direct, deps, services, filter(n in deps WHERE n:Optical_Path) as paths
-            WITH direct, deps, services, paths, filter(n in deps WHERE n:Optical_Multiplex_Section) as oms
-            WITH direct, deps, services, paths, oms, filter(n in deps WHERE n:Optical_Link) as links
+            WITH direct, deps, [n in deps WHERE n:Service] as services
+            WITH direct, deps, services, [n in deps WHERE n:Optical_Path] as paths
+            WITH direct, deps, services, paths, [n in deps WHERE n:Optical_Multiplex_Section] as oms
+            WITH direct, deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             RETURN direct, services, paths, oms, links
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_dependencies_as_types(self):
         q = """
-            MATCH (node:Node {handle_id: {handle_id}})
+            MATCH (node:Node {handle_id: $handle_id})
             OPTIONAL MATCH (node)-[:Depends_on]->(d)
             WITH node, collect(DISTINCT d) as direct
             MATCH (node)-[:Depends_on*1..20]->(dep)
             WITH node, direct, collect(DISTINCT dep) as deps
-            WITH node, direct, deps, filter(n in deps WHERE n:Service) as services
-            WITH node, direct, deps, services, filter(n in deps WHERE n:Optical_Path) as paths
-            WITH node, direct, deps, services, paths, filter(n in deps WHERE n:Optical_Multiplex_Section) as oms
-            WITH node, direct, deps, services, paths, oms, filter(n in deps WHERE n:Optical_Link) as links
+            WITH node, direct, deps, [n in deps WHERE n:Service] as services
+            WITH node, direct, deps, services, [n in deps WHERE n:Optical_Path] as paths
+            WITH node, direct, deps, services, paths, [n in deps WHERE n:Optical_Multiplex_Section] as oms
+            WITH node, direct, deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             WITH node, direct, services, paths, oms, links
             OPTIONAL MATCH (node)-[:Depends_on*1..20]->()-[:Connected_to*1..50]-(cable)
-            RETURN direct, services, paths, oms, links, filter(n in collect(DISTINCT cable) WHERE n:Cable) as cables
+            RETURN direct, services, paths, oms, links, [n in collect(DISTINCT cable) WHERE n:Cable] as cables
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_ports(self):
         q = """
-            MATCH (node:Node {handle_id: {handle_id}})-[r:Connected_to|Depends_on]-(port:Port)
+            MATCH (node:Node {handle_id: $handle_id})-[r:Connected_to|Depends_on]-(port:Port)
             WITH port, r
             OPTIONAL MATCH p=(port)<-[:Has*1..]-(parent)
             RETURN port, r as relationship, LAST(nodes(p)) as parent
@@ -283,14 +283,14 @@ class LogicalModel(CommonQueries):
 
     def get_part_of(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Part_of]->(node)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Part_of]->(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def set_user(self, user_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (user:Node {handle_id: {user_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (user:Node {handle_id: $user_handle_id})
             WITH n, user, NOT EXISTS((n)<-[:Uses]-(user)) as created
             MERGE (n)<-[r:Uses]-(user)
             RETURN created, r, user as node
@@ -299,7 +299,7 @@ class LogicalModel(CommonQueries):
 
     def set_provider(self, provider_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (provider:Node {handle_id: {provider_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (provider:Node {handle_id: $provider_handle_id})
             WITH n, provider, NOT EXISTS((n)<-[:Provides]-(provider)) as created
             MERGE (n)<-[r:Provides]-(provider)
             RETURN created, r, provider as node
@@ -308,7 +308,7 @@ class LogicalModel(CommonQueries):
 
     def set_dependency(self, dependency_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (dependency:Node {handle_id: {dependency_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (dependency:Node {handle_id: $dependency_handle_id})
             WITH n, dependency, NOT EXISTS((n)-[:Depends_on]->(dependency)) as created
             MERGE (n)-[r:Depends_on]->(dependency)
             RETURN created, r, dependency as node
@@ -325,28 +325,30 @@ class PhysicalModel(CommonQueries):
 
     def get_location(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Located_in]->(node)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Located_in]->(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_location_path(self):
+        # TODO: check if size(nodes(p))/size(path) in neo4j>=4.4 is equivalent to length(nodes(p))/length(path) in neo4j==3.5
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[:Located_in]->(r)
+            MATCH (n:Node {handle_id: $handle_id})-[:Located_in]->(r)
             MATCH p=()-[:Has*0..20]->(r)
-            WITH COLLECT(nodes(p)) as paths, MAX(length(nodes(p))) AS maxLength
-            WITH FILTER(path IN paths WHERE length(path)=maxLength) AS longestPaths
+            WITH COLLECT(nodes(p)) as paths, MAX(size(nodes(p))) AS maxLength
+            WITH [path IN paths WHERE size(path)=maxLength] AS longestPaths
             UNWIND(longestPaths) as location_path
             RETURN location_path
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_placement_path(self):
+        # TODO: check if size(nodes(p))/size(path) in neo4j>=4.4 is equivalent to length(nodes(p))/length(path) in neo4j==3.5
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[:Has]-(parent)
+            MATCH (n:Node {handle_id: $handle_id})<-[:Has]-(parent)
             OPTIONAL MATCH p=()-[:Has*0..20]->(parent)
-            WITH COLLECT(nodes(p)) as paths, MAX(length(nodes(p))) AS maxLength
-            WITH FILTER(path IN paths WHERE length(path)=maxLength) AS longestPaths
+            WITH COLLECT(nodes(p)) as paths, MAX(size(nodes(p))) AS maxLength
+            WITH [path IN paths WHERE size(path)=maxLength] AS longestPaths
             UNWIND(longestPaths) as placement_path
             RETURN placement_path
             """
@@ -354,7 +356,7 @@ class PhysicalModel(CommonQueries):
 
     def set_owner(self, owner_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (owner:Node {handle_id: {owner_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (owner:Node {handle_id: $owner_handle_id})
             WITH n, owner, NOT EXISTS((n)<-[:Owns]-(owner)) as created
             MERGE (n)<-[r:Owns]-(owner)
             RETURN created, r, owner as node
@@ -363,7 +365,7 @@ class PhysicalModel(CommonQueries):
 
     def set_provider(self, provider_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (provider:Node {handle_id: {provider_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (provider:Node {handle_id: $provider_handle_id})
             WITH n, provider, NOT EXISTS((n)<-[:Provides]-(provider)) as created
             MERGE (n)<-[r:Provides]-(provider)
             RETURN created, r, provider as node
@@ -372,7 +374,7 @@ class PhysicalModel(CommonQueries):
 
     def set_location(self, location_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (location:Node {handle_id: {location_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (location:Node {handle_id: $location_handle_id})
             WITH n, location, NOT EXISTS((n)-[:Located_in]->(location)) as created
             MERGE (n)-[r:Located_in]->(location)
             RETURN created, r, location as node
@@ -381,14 +383,14 @@ class PhysicalModel(CommonQueries):
 
     def get_has(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Has]->(part:Physical)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Has]->(part:Physical)
             RETURN r, part as node
             """
         return self._basic_read_query_to_dict(q)
 
     def set_has(self, has_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (part:Node {handle_id: {has_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (part:Node {handle_id: $has_handle_id})
             WITH n, part, NOT EXISTS((n)-[:Has]->(part)) as created
             MERGE (n)-[r:Has]->(part)
             RETURN created, r, part as node
@@ -397,14 +399,14 @@ class PhysicalModel(CommonQueries):
 
     def get_part_of(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Part_of]-(part:Logical)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Part_of]-(part:Logical)
             RETURN r, part as node
             """
         return self._basic_read_query_to_dict(q)
 
     def set_part_of(self, part_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (part:Node:Logical {handle_id: {part_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (part:Node:Logical {handle_id: $part_handle_id})
             WITH n, part, NOT EXISTS((n)<-[:Part_of]-(part)) as created
             MERGE (n)<-[r:Part_of]-(part)
             RETURN created, r, part as node
@@ -413,7 +415,7 @@ class PhysicalModel(CommonQueries):
 
     def get_parent(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Has]-(parent)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Has]-(parent)
             RETURN r, parent as node
             """
         return self._basic_read_query_to_dict(q)
@@ -424,11 +426,12 @@ class PhysicalModel(CommonQueries):
 class LocationModel(CommonQueries):
 
     def get_location_path(self):
+        # TODO: check if size(nodes(p))/size(path) in neo4j>=4.4 is equivalent to length(nodes(p))/length(path) in neo4j==3.5
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[:Has]-(r)
+            MATCH (n:Node {handle_id: $handle_id})<-[:Has]-(r)
             MATCH p=()-[:Has*0..20]->(r)
-            WITH COLLECT(nodes(p)) as paths, MAX(length(nodes(p))) AS maxLength
-            WITH FILTER(path IN paths WHERE length(path)=maxLength) AS longestPaths
+            WITH COLLECT(nodes(p)) as paths, MAX(size(nodes(p))) AS maxLength
+            WITH [path IN paths WHERE size(path)=maxLength] AS longestPaths
             UNWIND(longestPaths) as location_path
             RETURN location_path
             """
@@ -436,28 +439,28 @@ class LocationModel(CommonQueries):
 
     def get_parent(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Has]-(parent)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Has]-(parent)
             RETURN r, parent as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_located_in(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Located_in]-(node)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Located_in]-(node)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_has(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Has]->(node:Location)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Has]->(node:Location)
             RETURN r, node
             """
         return self._basic_read_query_to_dict(q)
 
     def set_has(self, has_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (part:Node {handle_id: {has_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (part:Node {handle_id: $has_handle_id})
             WITH n, part, NOT EXISTS((n)-[:Has]->(part)) as created
             MERGE (n)-[r:Has]->(part)
             RETURN created, r, part as node
@@ -466,7 +469,7 @@ class LocationModel(CommonQueries):
 
     def set_responsible_for(self, owner_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (owner:Node {handle_id: {owner_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (owner:Node {handle_id: $owner_handle_id})
             WITH n, owner, NOT EXISTS((n)<-[:Responsible_for]-(owner)) as created
             MERGE (n)<-[r:Responsible_for]-(owner)
             RETURN created, r, owner as node
@@ -478,7 +481,7 @@ class RelationModel(CommonQueries):
 
     def with_same_name(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (other:Node:Relation {name: {name}})
+            MATCH (n:Node {handle_id: $handle_id}), (other:Node:Relation {name: $name})
             WHERE other.handle_id <> n.handle_id
             RETURN COLLECT(other.handle_id) as ids
             """
@@ -486,28 +489,28 @@ class RelationModel(CommonQueries):
 
     def get_uses(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Uses]->(usable)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Uses]->(usable)
             RETURN r, usable as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_provides(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Provides]->(usable)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Provides]->(usable)
             RETURN r, usable as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_owns(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Owns]->(usable)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Owns]->(usable)
             RETURN r, usable as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_responsible_for(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Responsible_for]->(usable)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Responsible_for]->(usable)
             RETURN r, usable as node
             """
         return self._basic_read_query_to_dict(q)
@@ -517,15 +520,15 @@ class EquipmentModel(PhysicalModel):
 
     def get_ports(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Has]->(port:Port)
+            MATCH (n:Node {handle_id: $handle_id})-[r:Has]->(port:Port)
             RETURN r, port as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_port(self, port_name):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Has]->(port:Port)
-            WHERE port.name = {port_name}
+            MATCH (n:Node {handle_id: $handle_id})-[r:Has]->(port:Port)
+            WHERE port.name = $port_name
             RETURN r, port as node
             """
         return self._basic_read_query_to_dict(q, port_name=port_name)
@@ -533,7 +536,7 @@ class EquipmentModel(PhysicalModel):
     def get_dependent_as_types(self):
         # The + [null] is to handle both dep lists being emtpy since UNWIND gives 0 rows on unwind
         q = """
-            MATCH (node:Node {handle_id: {handle_id}})
+            MATCH (node:Node {handle_id: $handle_id})
             OPTIONAL MATCH (node)<-[:Depends_on]-(d)
             WITH node, collect(DISTINCT d) as direct
             OPTIONAL MATCH (node)-[:Has*1..20]->()<-[:Part_of|Depends_on*1..20]-(dep)
@@ -541,17 +544,17 @@ class EquipmentModel(PhysicalModel):
             WITH direct, collect(DISTINCT dep) + collect(DISTINCT cable_dep) + direct as coll
             UNWIND coll AS x
             WITH direct, collect(DISTINCT x) as deps
-            WITH direct, deps, filter(n in deps WHERE n:Service) as services
-            WITH direct, deps, services, filter(n in deps WHERE n:Optical_Path) as paths
-            WITH direct, deps, services, paths, filter(n in deps WHERE n:Optical_Multiplex_Section) as oms
-            WITH direct, deps, services, paths, oms, filter(n in deps WHERE n:Optical_Link) as links
+            WITH direct, deps, [n in deps WHERE n:Service] as services
+            WITH direct, deps, services, [n in deps WHERE n:Optical_Path] as paths
+            WITH direct, deps, services, paths, [n in deps WHERE n:Optical_Multiplex_Section] as oms
+            WITH direct, deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             RETURN direct, services, paths, oms, links
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_connections(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[:Has*1..10]->(porta:Port)
+            MATCH (n:Node {handle_id: $handle_id})-[:Has*1..10]->(porta:Port)
             OPTIONAL MATCH (porta)<-[r0:Connected_to]-(cable)
             OPTIONAL MATCH (cable)-[r1:Connected_to]->(portb:Port)
             WHERE ID(r1) <> ID(r0)
@@ -567,11 +570,12 @@ class EquipmentModel(PhysicalModel):
 class SubEquipmentModel(PhysicalModel):
 
     def get_location_path(self):
+        # TODO: check if size(nodes(p))/size(path) in neo4j>=4.4 is equivalent to length(nodes(p))/length(path) in neo4j==3.5
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[:Has]-(parent)
+            MATCH (n:Node {handle_id: $handle_id})<-[:Has]-(parent)
             OPTIONAL MATCH p=()-[:Has*0..20]->(r)<-[:Located_in]-()-[:Has*0..20]->(parent)
-            WITH COLLECT(nodes(p)) as paths, MAX(length(nodes(p))) AS maxLength
-            WITH FILTER(path IN paths WHERE length(path)=maxLength) AS longestPaths
+            WITH COLLECT(nodes(p)) as paths, MAX(size(nodes(p))) AS maxLength
+            WITH [path IN paths WHERE size(path)=maxLength] AS longestPaths
             UNWIND(longestPaths) as location_path
             RETURN location_path
             """
@@ -579,7 +583,7 @@ class SubEquipmentModel(PhysicalModel):
 
     def get_connections(self):
         q = """
-            MATCH (porta:Node {handle_id: {handle_id}})<-[r0:Connected_to]-(cable)
+            MATCH (porta:Node {handle_id: $handle_id})<-[r0:Connected_to]-(cable)
             OPTIONAL MATCH (porta)<-[r0:Connected_to]-(cable)-[r1:Connected_to]->(portb)
             OPTIONAL MATCH (portb)<-[:Has*1..10]-(end)
             WITH  porta, r0, cable, portb, r1, last(collect(end)) as end
@@ -594,30 +598,30 @@ class HostModel(CommonQueries):
 
     def get_dependent_as_types(self):  # Does not return Host_Service as a direct dependent
         q = """
-            MATCH (node:Node {handle_id: {handle_id}})
+            MATCH (node:Node {handle_id: $handle_id})
             OPTIONAL MATCH (node)<-[:Depends_on]-(d)
-            WITH node, filter(n in collect(DISTINCT d) WHERE NOT(n:Host_Service)) as direct
+            WITH node, [n in collect(DISTINCT d) WHERE NOT(n:Host_Service)] as direct
             MATCH (node)<-[:Depends_on*1..20]-(dep)
             WITH direct, collect(DISTINCT dep) as deps
-            WITH direct, deps, filter(n in deps WHERE n:Service) as services
-            WITH direct, deps, services, filter(n in deps WHERE n:Optical_Path) as paths
-            WITH direct, deps, services, paths, filter(n in deps WHERE n:Optical_Multiplex_Section) as oms
-            WITH direct, deps, services, paths, oms, filter(n in deps WHERE n:Optical_Link) as links
+            WITH direct, deps, [n in deps WHERE n:Service] as services
+            WITH direct, deps, services, [n in deps WHERE n:Optical_Path] as paths
+            WITH direct, deps, services, paths, [n in deps WHERE n:Optical_Multiplex_Section] as oms
+            WITH direct, deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             RETURN direct, services, paths, oms, links
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_host_services(self):
         q = """
-            MATCH (host:Node {handle_id: {handle_id}})<-[r:Depends_on]-(service:Host_Service)
+            MATCH (host:Node {handle_id: $handle_id})<-[r:Depends_on]-(service:Host_Service)
             RETURN r, service as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_host_service(self, service_handle_id, ip_address, port, protocol):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Depends_on]-(host_service:Node {handle_id: {service_handle_id}})
-            WHERE r.ip_address={ip_address} AND r.port={port} AND r.protocol={protocol}
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Depends_on]-(host_service:Node {handle_id: $service_handle_id})
+            WHERE r.ip_address=$ip_address AND r.port=$port AND r.protocol=$protocol
             RETURN r, host_service as node
             """
         return self._basic_read_query_to_dict(q, service_handle_id=service_handle_id, ip_address=ip_address, port=port,
@@ -625,8 +629,8 @@ class HostModel(CommonQueries):
 
     def set_host_service(self, service_handle_id, ip_address, port, protocol):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (host_service:Node {handle_id: {service_handle_id}})
-            CREATE (n)<-[r:Depends_on {ip_address:{ip_address}, port:{port}, protocol:{protocol}}]-(host_service)
+            MATCH (n:Node {handle_id: $handle_id}), (host_service:Node {handle_id: $service_handle_id})
+            CREATE (n)<-[r:Depends_on {ip_address:$ip_address, port:$port, protocol:$protocol}]-(host_service)
             RETURN true as created, r, host_service as node
             """
         return self._basic_write_query_to_dict(q, service_handle_id=service_handle_id, ip_address=ip_address,
@@ -645,29 +649,29 @@ class PortModel(SubEquipmentModel):
 
     def get_units(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Part_of]-(unit:Unit)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Part_of]-(unit:Unit)
             RETURN r, unit as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_unit(self, unit_name):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Part_of]-(unit:Unit)
-            WHERE unit.name = {unit_name}
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Part_of]-(unit:Unit)
+            WHERE unit.name = $unit_name
             RETURN r, unit as node
             """
         return self._basic_read_query_to_dict(q, unit_name=unit_name)
 
     def get_connected_to(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Connected_to]-(cable:Cable)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Connected_to]-(cable:Cable)
             RETURN r, cable as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_connection_path(self):
         q = """
-            MATCH (n:Port {handle_id: {handle_id}})-[:Connected_to*0..20]-(port:Port)
+            MATCH (n:Port {handle_id: $handle_id})-[:Connected_to*0..20]-(port:Port)
             OPTIONAL MATCH path=(port)-[:Connected_to*]-()
             WITH nodes(path) AS parts, length(path) AS len
             ORDER BY len DESC
@@ -692,7 +696,7 @@ class RouterModel(EquipmentModel):
         else:
             type_filter = ':Port'
         q = """
-            MATCH (parent:Node {{handle_id:{{handle_id}}}})
+            MATCH (parent:Node {{handle_id: $handle_id}})
             MATCH (parent)-[:Has*]->(child{type_filter})
             RETURN child.handle_id as handle_id, labels(child) as labels, child.name as name,
                    child.description as description
@@ -705,23 +709,23 @@ class PeeringPartnerModel(RelationModel):
 
     def get_peering_groups(self):
         q = """
-            MATCH (host:Node {handle_id: {handle_id}})-[r:Uses]->(group:Peering_Group)
+            MATCH (host:Node {handle_id: $handle_id})-[r:Uses]->(group:Peering_Group)
             RETURN r, group as node
             """
         return self._basic_read_query_to_dict(q)
 
     def get_peering_group(self, group_handle_id, ip_address):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Uses]->(group:Node {handle_id: {group_handle_id}})
-            WHERE r.ip_address={ip_address}
+            MATCH (n:Node {handle_id: $handle_id})-[r:Uses]->(group:Node {handle_id: $group_handle_id})
+            WHERE r.ip_address=$ip_address
             RETURN r, group as node
             """
         return self._basic_read_query_to_dict(q, group_handle_id=group_handle_id, ip_address=ip_address)
 
     def set_peering_group(self, group_handle_id, ip_address):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (group:Node {handle_id: {group_handle_id}})
-            CREATE (n)-[r:Uses {ip_address:{ip_address}}]->(group)
+            MATCH (n:Node {handle_id: $handle_id}), (group:Node {handle_id: $group_handle_id})
+            CREATE (n)-[r:Uses {ip_address:$ip_address}]->(group)
             RETURN true as created, r, group as node
             """
         return self._basic_write_query_to_dict(q, group_handle_id=group_handle_id, ip_address=ip_address)
@@ -731,16 +735,16 @@ class PeeringGroupModel(LogicalModel):
 
     def get_group_dependency(self, dependency_handle_id, ip_address):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[r:Depends_on]->(dependency:Node {handle_id: {dependency_handle_id}})
-            WHERE r.ip_address={ip_address}
+            MATCH (n:Node {handle_id: $handle_id})-[r:Depends_on]->(dependency:Node {handle_id: $dependency_handle_id})
+            WHERE r.ip_address=$ip_address
             RETURN r, dependency as node
             """
         return self._basic_read_query_to_dict(q, dependency_handle_id=dependency_handle_id, ip_address=ip_address)
 
     def set_group_dependency(self, dependency_handle_id, ip_address):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (dependency:Node {handle_id: {dependency_handle_id}})
-            CREATE (n)-[r:Depends_on {ip_address:{ip_address}}]->(dependency)
+            MATCH (n:Node {handle_id: $handle_id}), (dependency:Node {handle_id: $dependency_handle_id})
+            CREATE (n)-[r:Depends_on {ip_address:$ip_address}]->(dependency)
             RETURN true as created, r, dependency as node
             """
         return self._basic_write_query_to_dict(q, dependency_handle_id=dependency_handle_id, ip_address=ip_address)
@@ -750,7 +754,7 @@ class CableModel(PhysicalModel):
 
     def get_connected_equipment(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[rel:Connected_to]->(port)
+            MATCH (n:Node {handle_id: $handle_id})-[rel:Connected_to]->(port)
             OPTIONAL MATCH (port)<-[:Has*1..10]-(end)
             WITH  rel, port, last(collect(end)) as end
             OPTIONAL MATCH (end)-[:Located_in]->(location)
@@ -762,21 +766,21 @@ class CableModel(PhysicalModel):
 
     def get_dependent_as_types(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[:Connected_to*1..20]-(equip)
+            MATCH (n:Node {handle_id: $handle_id})-[:Connected_to*1..20]-(equip)
             WITH DISTINCT equip
             MATCH (equip)<-[:Part_of|Depends_on*1..10]-(dep)
             WITH collect(DISTINCT dep) as deps
-            WITH deps, filter(n in deps WHERE n:Service) as services
-            WITH deps, services, filter(n in deps WHERE n:Optical_Path) as paths
-            WITH deps, services, paths, filter(n in deps WHERE n:Optical_Multiplex_Section) as oms
-            WITH deps, services, paths, oms, filter(n in deps WHERE n:Optical_Link) as links
+            WITH deps, [n in deps WHERE n:Service] as services
+            WITH deps, services, [n in deps WHERE n:Optical_Path] as paths
+            WITH deps, services, paths, [n in deps WHERE n:Optical_Multiplex_Section] as oms
+            WITH deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             RETURN services, paths, oms, links
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_services(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})
+            MATCH (n:Node {handle_id: $handle_id})
             MATCH (n)-[:Connected_to*1..20]-(equip)
             WITH equip
             MATCH (equip)<-[:Depends_on*1..10]-(service)
@@ -789,7 +793,7 @@ class CableModel(PhysicalModel):
 
     def get_connection_path(self):
         q = """
-            MATCH (n:Cable {handle_id: {handle_id}})-[:Connected_to*1..10]-(port:Port)
+            MATCH (n:Cable {handle_id: $handle_id})-[:Connected_to*1..10]-(port:Port)
             OPTIONAL MATCH path=(port)-[:Connected_to*]-()
             WITH nodes(path) AS parts, length(path) AS len
             ORDER BY len DESC
@@ -803,7 +807,7 @@ class CableModel(PhysicalModel):
 
     def set_connected_to(self, connected_to_handle_id):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}}), (part:Node {handle_id: {connected_to_handle_id}})
+            MATCH (n:Node {handle_id: $handle_id}), (part:Node {handle_id: $connected_to_handle_id})
             WITH n, part, NOT EXISTS((n)-[:Connected_to]->(part)) as created
             MERGE (n)-[r:Connected_to]->(part)
             RETURN created, r, part as node
@@ -814,22 +818,24 @@ class CableModel(PhysicalModel):
 class UnitModel(LogicalModel):
 
     def get_placement_path(self):
+        # TODO: check if size(nodes(p))/size(path) in neo4j>=4.4 is equivalent to length(nodes(p))/length(path) in neo4j==3.5
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[:Part_of]->(parent)
+            MATCH (n:Node {handle_id: $handle_id})-[:Part_of]->(parent)
             OPTIONAL MATCH p=()-[:Has*0..20]->(parent)
-            WITH COLLECT(nodes(p)) as paths, MAX(length(nodes(p))) AS maxLength
-            WITH FILTER(path IN paths WHERE length(path)=maxLength) AS longestPaths
+            WITH COLLECT(nodes(p)) as paths, MAX(size(nodes(p))) AS maxLength
+            WITH [path IN paths WHERE size(path)=maxLength] AS longestPaths
             UNWIND(longestPaths) as placement_path
             RETURN placement_path
             """
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
     def get_location_path(self):
+        # TODO: check if size(nodes(p))/size(path) in neo4j>=4.4 is equivalent to length(nodes(p))/length(path) in neo4j==3.5
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})-[:Part_of]->(parent)
+            MATCH (n:Node {handle_id: $handle_id})-[:Part_of]->(parent)
             OPTIONAL MATCH p=()-[:Has*0..20]->(r)<-[:Located_in]-()-[:Has*0..20]->(parent)
-            WITH COLLECT(nodes(p)) as paths, MAX(length(nodes(p))) AS maxLength
-            WITH FILTER(path IN paths WHERE length(path)=maxLength) AS longestPaths
+            WITH COLLECT(nodes(p)) as paths, MAX(size(nodes(p))) AS maxLength
+            WITH [path IN paths WHERE size(path)=maxLength] AS longestPaths
             UNWIND(longestPaths) as location_path
             RETURN location_path
             """
@@ -840,7 +846,7 @@ class ServiceModel(LogicalModel):
 
     def get_customers(self):
         q = """
-            MATCH (n:Node {handle_id: {handle_id}})<-[r:Owns|Uses]-(customer:Customer)
+            MATCH (n:Node {handle_id: $handle_id})<-[r:Owns|Uses]-(customer:Customer)
             RETURN "customers" as key, r, customer as node
             """
         return self._basic_read_query_to_dict(q)
