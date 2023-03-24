@@ -5,6 +5,9 @@ stages:
 
 image: python:3
 
+variables:
+  NEO4J_AUTH: neo4j/docker
+
 services:
   - neo4j:4.4
 
