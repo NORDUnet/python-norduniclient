@@ -6,7 +6,7 @@ stages:
 image: python:3
 
 services:
-  - neo4j:3.5
+  - neo4j:4.4
 
 
 before_script:
