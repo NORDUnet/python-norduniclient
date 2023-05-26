@@ -58,7 +58,6 @@ class ModelsTests(Neo4jTestCase):
             (port8:Node:Physical:Port{name:'Port8', handle_id:'40'}),
             (rack4:Node:Location:Rack{name:'Rack4', handle_id:'41'}),
             (cable5:Node:Physical:Cable{name:'Cable5', handle_id:'42'}),
-            (host_service1:Node:Logical:Host_Service{name:'Host Service1', handle_id:'43'}),
             (peering_group2:Node:Logical:Peering_Group{name:'Peering Group2', handle_id:'44'}),
             (cable6:Node:Physical:Cable{name:'Cable6', handle_id:'45'}),
             (service5:Node:Logical:Service{name:'Service5', handle_id:'46'}),
@@ -109,7 +108,6 @@ class ModelsTests(Neo4jTestCase):
             (customer2)-[:Uses]->(service2),
             (customer2)-[:Uses]->(service3),
             (customer3)-[:Uses]->(service3),
-            (host_service1)-[:Depends_on {ip_address:'127.0.0.1',port:'80',protocol:'tcp'}]->(host1),
             (service5)-[:Depends_on]->(external_equipment1)
             """
 
@@ -602,27 +600,7 @@ class ModelsTests(Neo4jTestCase):
         self.assertEqual(dependents['paths'], [])
         self.assertEqual(dependents['services'], [])
 
-    def test_get_host_services_host_model(self):
-        host1 = core.get_node_model(self.neo4jdb, handle_id='32')
-        host_services = host1.get_host_services()
-        self.assertEqual(len(host_services['Depends_on']), 1)
-        self.assertIsInstance(host_services['Depends_on'][0]['node'], models.LogicalModel)
-        self.assertEqual(host_services['Depends_on'][0]['node'].data['name'], 'Host Service1')
-        self.assertEqual(host_services['Depends_on'][0]['relationship']['ip_address'], '127.0.0.1')
-        self.assertEqual(host_services['Depends_on'][0]['relationship']['port'], '80')
-        self.assertEqual(host_services['Depends_on'][0]['relationship']['protocol'], 'tcp')
-
-    def test_set_and_get_host_service_host_model(self):
-        host2 = core.get_node_model(self.neo4jdb, handle_id='33')
-        host_service1 = core.get_node_model(self.neo4jdb, handle_id='43')
-
-        result = host2.set_host_service(host_service1.handle_id, ip_address='127.0.0.1', port='443', protocol='tcp')
-        self.assertEqual(result['Depends_on'][0]['created'], True)
-        host_services = host2.get_host_services()
-        self.assertEqual(len(host_services['Depends_on']), 1)
-
-        # TODO: Fix duplicates
-
+    # TODO: Fix duplicates
     def test_get_units_port_model(self):
         port1 = core.get_node_model(self.neo4jdb, handle_id='2')
         units = port1.get_units()

@@ -315,7 +315,8 @@ class LogicalModel(CommonQueries):
             """
         return self._basic_write_query_to_dict(q, dependency_handle_id=dependency_handle_id)
 
-    def get_connections(self):  # Logical versions of physical things can't have physical connections
+    # Logical versions of physical things can't have physical connections
+    def get_connections(self):
         return []
 
     # TODO: Create a method that complains if any relationships that breaks the model exists
@@ -596,11 +597,11 @@ class SubEquipmentModel(PhysicalModel):
 
 class HostModel(CommonQueries):
 
-    def get_dependent_as_types(self):  # Does not return Host_Service as a direct dependent
+    def get_dependent_as_types(self):
         q = """
             MATCH (node:Node {handle_id: $handle_id})
             OPTIONAL MATCH (node)<-[:Depends_on]-(d)
-            WITH node, [n in collect(DISTINCT d) WHERE NOT(n:Host_Service)] as direct
+            WITH node, [n in collect(DISTINCT d)] as direct
             MATCH (node)<-[:Depends_on*1..20]-(dep)
             WITH direct, collect(DISTINCT dep) as deps
             WITH direct, deps, [n in deps WHERE n:Service] as services
@@ -609,32 +610,8 @@ class HostModel(CommonQueries):
             WITH direct, deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             RETURN direct, services, paths, oms, links
             """
+        
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
-
-    def get_host_services(self):
-        q = """
-            MATCH (host:Node {handle_id: $handle_id})<-[r:Depends_on]-(service:Host_Service)
-            RETURN r, service as node
-            """
-        return self._basic_read_query_to_dict(q)
-
-    def get_host_service(self, service_handle_id, ip_address, port, protocol):
-        q = """
-            MATCH (n:Node {handle_id: $handle_id})<-[r:Depends_on]-(host_service:Node {handle_id: $service_handle_id})
-            WHERE r.ip_address=$ip_address AND r.port=$port AND r.protocol=$protocol
-            RETURN r, host_service as node
-            """
-        return self._basic_read_query_to_dict(q, service_handle_id=service_handle_id, ip_address=ip_address, port=port,
-                                              protocol=protocol)
-
-    def set_host_service(self, service_handle_id, ip_address, port, protocol):
-        q = """
-            MATCH (n:Node {handle_id: $handle_id}), (host_service:Node {handle_id: $service_handle_id})
-            CREATE (n)<-[r:Depends_on {ip_address:$ip_address, port:$port, protocol:$protocol}]-(host_service)
-            RETURN true as created, r, host_service as node
-            """
-        return self._basic_write_query_to_dict(q, service_handle_id=service_handle_id, ip_address=ip_address,
-                                               port=port, protocol=protocol)
 
 
 class PhysicalHostModel(HostModel, EquipmentModel):
