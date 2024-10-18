@@ -71,13 +71,12 @@ jobs:
     - name: Build the package
       run: poetry build
 
-  publish:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
+    - name: List files in dist/
+      run: ls -al dist
+
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@v4
       with:
-        name: my-artifact
-        path: $GITHUB_WORKSPACE/norduniclient-package.md
+        name: build-artifacts
+        path: dist/
         retention-days: 5
