@@ -610,7 +610,7 @@ class HostModel(CommonQueries):
             WITH direct, deps, services, paths, oms, [n in deps WHERE n:Optical_Link] as links
             RETURN direct, services, paths, oms, links
             """
-        
+
         return core.query_to_dict(self.manager, q, handle_id=self.handle_id)
 
 

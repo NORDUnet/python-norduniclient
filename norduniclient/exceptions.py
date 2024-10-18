@@ -18,7 +18,7 @@ class NoRelationshipPossible(Exception):
         self.meta_type1 = meta_type1
         self.meta_type2 = meta_type2
         self.relationship_type = relationship_type
-    
+
     def __str__(self):
         node1_str = '{meta_type} Node ({handle_id})'.format(meta_type=self.meta_type1, handle_id=self.handle_id1)
         node2_str = '{meta_type} Node ({handle_id})'.format(meta_type=self.meta_type2, handle_id=self.handle_id2)
@@ -32,7 +32,7 @@ class MetaLabelNamingError(Exception):
     """
     def __init__(self, name):
         self.error = 'A meta label can not be named {name}.'.format(name=name)
-        
+
     def __str__(self):
         return self.error
 
@@ -44,7 +44,7 @@ class NoMetaLabelFound(Exception):
     """
     def __init__(self, handle_id):
         self.handle_id = handle_id
-        
+
     def __str__(self):
         return 'Node with handle_id {handle_id} has no meta label.'.format(handle_id=self.handle_id)
 

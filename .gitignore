@@ -35,6 +35,9 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
+.nox
+/.nox
+.mypy_cache
 htmlcov/
 .tox/
 .coverage
@@ -91,4 +94,5 @@ env
 
 # PyCharm project settings
 .idea
+./.idea
 

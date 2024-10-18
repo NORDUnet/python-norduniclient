@@ -20,8 +20,9 @@
 
 from __future__ import absolute_import
 
-from neo4j.v1 import GraphDatabase, basic_auth
-from neo4j.exceptions import ProtocolError, ClientError
+from neo4j import GraphDatabase
+from neo4j.exceptions import DatabaseError, ClientError
+from neo4j.api import basic_auth
 from norduniclient import exceptions
 from norduniclient import models
 
@@ -118,7 +119,7 @@ def init_db(uri=NEO4J_URI, username=NEO4J_USERNAME, password=NEO4J_PASSWORD, enc
                 logger.error('Could not create index for Neo4j database: {!s}'.format(uri))
                 raise e
             return manager
-        except ProtocolError as e:
+        except DatabaseError as e:
             logger.warning('Could not connect to Neo4j database: {!s}'.format(uri))
             raise e
 
@@ -138,10 +139,11 @@ def get_db_driver(uri, username=None, password=None, encrypted=True, max_pool_si
     :param trust: Trust cert on first use (0) or do not accept unknown cert (1)
     :type trust: Integer
     :return: Neo4j driver
-    :rtype: neo4j.v1.session.Driver
+    :rtype: neo4j.session.Driver
     """
+
     return GraphDatabase.driver(uri, auth=basic_auth(username, password), encrypted=encrypted,
-                                max_pool_size=max_pool_size, trust=trust)
+                                max_connection_pool_size=max_pool_size, trust='TRUST_ALL_CERTIFICATES')
 
 
 def query_to_dict(manager, query, **kwargs):
@@ -216,7 +218,7 @@ def get_node(manager, handle_id):
     :type manager: norduniclient.contextmanager.Neo4jDBSessionManager
     :type handle_id: str|unicode
 
-    :rtype: dict|neo4j.v1.types.Node
+    :rtype: dict|neo4j.types.Node
     """
     q = 'MATCH (n:Node { handle_id: $handle_id }) RETURN n'
 
@@ -233,7 +235,7 @@ def get_node_bundle(manager, handle_id=None, node=None):
     :param handle_id: Unique id
     :type handle_id: str|unicode
     :param node: Node object
-    :type node: neo4j.v1.types.Node
+    :type node: neo4j.types.Node
     :return: dict
     """
     if not node:
@@ -283,7 +285,7 @@ def get_relationship(manager, relationship_id):
     :type manager: norduniclient.contextmanager.Neo4jDBSessionManager
     :type relationship_id: int
 
-    :rtype int|neo4j.v1.types.Relationship
+    :rtype int|neo4j.types.Relationship
     """
     q = """
         MATCH ()-[r]->()
@@ -674,7 +676,7 @@ def get_node_model(manager, handle_id=None, node=None):
     :param handle_id: Nodes handle id
     :type handle_id: str|unicode
     :param node: Node object
-    :type node: neo4j.v1.types.Node
+    :type node: neo4j.types.Node
     :return: Node model
     :rtype: models.BaseNodeModel or sub class of models.BaseNodeModel
     """
