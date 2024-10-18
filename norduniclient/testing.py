@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import
 
+import os
 import unittest
 import time
 import atexit
@@ -34,15 +35,17 @@ class Neo4jTemporaryInstance(object):
         return cls._instance
 
     def __init__(self):
-        self._host = 'neo4j'
-        self._http_port = 7474
-        self._bolt_port = 7687
+        self._host = os.environ.get("NEO4J_HOSTNAME", "localhost")
+        self._http_port = os.environ.get("NEO4J_HTTP_PORT", 7474)
+        self._bolt_port = os.environ.get("NEO4J_BOLT_PORT", 7687)
+        self._neo4j_password = os.environ.get("NEO4J_PASSWORD", "neo4j")
+        self._neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
 
         for i in range(300):
             time.sleep(0.5)
             try:
-                self._db = init_db('bolt://{!s}:{!s}'.format(self.host, self.bolt_port), username='neo4j',
-                                   password='testing', encrypted=False)
+                self._db = init_db('bolt://{!s}:{!s}'.format(self.host, self.bolt_port), username=self._neo4j_user,
+                                   password=self._neo4j_password, encrypted=False)
             except SocketError:
                 continue
             else:

@@ -13,4 +13,3 @@ __author__ = 'lundberg'
 graphdb = GraphDB.get_instance()
 
 neo4jdb = graphdb.manager  # Works as the old neo4jdb
-

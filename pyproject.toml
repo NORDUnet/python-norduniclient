@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "norduniclient"
+version = "1.4.4"
+description = "Neo4j (>=4.4.12) database client using bolt for NORDUnet network inventory"
+authors = [
+    "Johan Lundberg <lundberg@nordu.net>",
+    ]
+readme = "norduniclient-package.md"
+homepage = "https://github.com/NORDUnet/python-norduniclient"
+repository = "https://github.com/NORDUnet/python-norduniclient"
+documentation = "https://github.com/NORDUnet/python-norduniclient"
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+neo4j = "4.4.12"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+mypy = "^1.11.2"
+pytest = "^8.3.3"
+flake8 = "^7.1.1"
+nox = "^2024.10.9"
+pre-commit = "^4.0.1"
+
+
+[tool.flake8]
+max-line-length = 125
+exclude = ['.git', '__pycache__']
+extend-ignore = [
+    # PEP 8 recommends to treat : in slices as a binary operator with the lowest priority, and to leave an equal
+    # amount of space on either side, except if a parameter is omitted (e.g. ham[1 + 1 :]).
+    # This behaviour may raise E203 whitespace before ':' warnings in style guide enforcement tools like Flake8.
+    # Since E203 is not PEP 8 compliant, we tell Flake8 to ignore this warning.
+    # https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html#slices    
+    "F405",
+    "F403"
+]
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
